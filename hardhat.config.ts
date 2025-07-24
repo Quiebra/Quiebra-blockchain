@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const SEI_TESTNET_RPC_URL = process.env.SEI_TESTNET_RPC_URL || "[https://rpc.atlantic-2.sei.io](https://rpc.atlantic-2.sei.io)";
+const SEI_TESTNET_RPC_URL = process.env.SEI_TESTNET_RPC_URL || "[https://evm-rpc-testnet.sei-apis.com](https://evm-rpc-testnet.sei-apis.com)";
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
 
 if (!PRIVATE_KEY) {
