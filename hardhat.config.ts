@@ -1,7 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-ethers";
-import "@openzeppelin/contracts";
 import dotenv from "dotenv";
 
 dotenv.config();
