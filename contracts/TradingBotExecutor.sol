@@ -4,6 +4,17 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+interface IUniswapV2Router {
+    function swapExactTokensForTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external returns (uint[] memory amounts);
+}
 
 /**
  * @title TradingBotExecutor
@@ -12,17 +23,24 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * It needs to interact with DEXes (e.g., via router contracts).
  */
 contract TradingBotExecutor is Ownable {
+    using SafeERC20 for IERC20;
     address public feeRecipient; // Address to send collected fees
     uint256 public feePercentageBasisPoints; // 1-2% PnL, e.g., 100 for 1%
+    address public router;
+    mapping(address => bool) public supportedTokens;
 
     event TradeExecuted(address indexed trader, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut);
     event FeesCollected(address indexed trader, uint256 amount);
+    event RouterSet(address indexed newRouter);
+    event TokenSupported(address indexed token, bool supported);
 
-    constructor(address _feeRecipient, uint256 _feePercentageBasisPoints) Ownable(msg.sender) {
+    constructor(address _feeRecipient, uint256 _feePercentageBasisPoints, address _router) Ownable(msg.sender) {
         require(_feeRecipient != address(0), "Fee recipient cannot be zero address");
         require(_feePercentageBasisPoints <= 10000, "Fee percentage cannot exceed 100%"); // 10000 basis points = 100%
+        require(_router != address(0), "Router cannot be zero address");
         feeRecipient = _feeRecipient;
         feePercentageBasisPoints = _feePercentageBasisPoints;
+        router = _router;
     }
 
     /**
@@ -44,26 +62,26 @@ contract TradingBotExecutor is Ownable {
         address[] calldata path,
         uint256 deadline
     ) public onlyOwner { // Only owner (backend) can call this for now
-        // --- Placeholder for actual DEX interaction logic ---
-        // In a real scenario, you would:
-        // 1. Approve the DEX router to spend tokenIn from this contract.
-        //    IERC20(tokenIn).approve(DEX_ROUTER_ADDRESS, amountIn);
-        // 2. Call the DEX router's swap function (e.g., swapExactTokensForTokens).
-        //    DEX_ROUTER.swapExactTokensForTokens(amountIn, minAmountOut, path, address(this), deadline);
-        // 3. Calculate PnL and collect fees.
-
-        // For demonstration, let's assume a successful trade and calculate mock PnL
-        uint256 actualAmountOut = minAmountOut + (amountIn / 100); // Mock gain
-
-        // Trigger fee collection (simplified)
-        uint256 pnl = actualAmountOut > amountIn ? actualAmountOut - amountIn : 0; // Simplified PnL
-        if (pnl > 0) {
-            uint256 fees = (pnl * feePercentageBasisPoints) / 10000;
-            // Transfer fees to feeRecipient (assuming fees are in tokenOut)
-            // IERC20(tokenOut).transfer(feeRecipient, fees);
+        require(router != address(0), "Router not set");
+        require(supportedTokens[tokenIn] && supportedTokens[tokenOut], "Token not supported");
+        IERC20 token = IERC20(tokenIn);
+        token.forceApprove(router, 0);
+        token.forceApprove(router, amountIn);
+        uint256 balanceBefore = IERC20(tokenOut).balanceOf(address(this));
+        IUniswapV2Router(router).swapExactTokensForTokens(
+            amountIn,
+            minAmountOut,
+            path,
+            address(this),
+            deadline
+        );
+        uint256 balanceAfter = IERC20(tokenOut).balanceOf(address(this));
+        uint256 actualAmountOut = balanceAfter - balanceBefore;
+        uint256 fees = (actualAmountOut * feePercentageBasisPoints) / 10000;
+        if (fees > 0) {
+            IERC20(tokenOut).safeTransfer(feeRecipient, fees);
             emit FeesCollected(msg.sender, fees);
         }
-
         emit TradeExecuted(msg.sender, tokenIn, tokenOut, amountIn, actualAmountOut);
     }
 
@@ -77,5 +95,16 @@ contract TradingBotExecutor is Ownable {
     function setFeePercentage(uint256 _newFeePercentageBasisPoints) public onlyOwner {
         require(_newFeePercentageBasisPoints <= 10000, "Fee percentage cannot exceed 100%");
         feePercentageBasisPoints = _newFeePercentageBasisPoints;
+    }
+
+    function setRouter(address _router) external onlyOwner {
+        require(_router != address(0), "Router cannot be zero address");
+        router = _router;
+        emit RouterSet(_router);
+    }
+
+    function setSupportedToken(address token, bool supported) external onlyOwner {
+        supportedTokens[token] = supported;
+        emit TokenSupported(token, supported);
     }
 }

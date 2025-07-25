@@ -6,18 +6,20 @@ async function main() {
 
   console.log("Deploying contracts with the account:", deployer.address);
 
-  // Deploy MemecoinToken
-  const MemecoinToken = await ethers.getContractFactory("MemecoinToken");
-  const initialSupply = ethers.parseUnits("1000000", 18); // 1,000,000 tokens
-  const memecoin = await MemecoinToken.deploy("MyMemecoin", "MMC", initialSupply);
-  await memecoin.waitForDeployment();
-  console.log("MemecoinToken deployed to:", memecoin.target);
+  // Deploy MemecoinFactory
+  const treasury = deployer.address; // Set your treasury address here
+  const basePrice = ethers.parseUnits("0.001", 18); // 0.001 ETH per token
+  const slope = ethers.parseUnits("0.000001", 18); // 0.000001 ETH per token per token
+  const curveType = 0; // 0 = linear
+  const MemecoinFactory = await ethers.getContractFactory("MemecoinFactory");
+  const factory = await MemecoinFactory.deploy(treasury, basePrice, slope, curveType);
+  await factory.waitForDeployment();
+  console.log("MemecoinFactory deployed to:", factory.target);
 
-  // Deploy TradingBotExecutor
-  const feeRecipient = deployer.address; // For now, deployer is the fee recipient
-  const feePercentageBasisPoints = 100; // 1% fee
+  // Deploy TradingBotExecutor with router address (set to 0x... for now)
+  const router = "0x0000000000000000000000000000000000000000"; // Replace with real router address
   const TradingBotExecutor = await ethers.getContractFactory("TradingBotExecutor");
-  const executor = await TradingBotExecutor.deploy(feeRecipient, feePercentageBasisPoints);
+  const executor = await TradingBotExecutor.deploy(treasury, 100, router);
   await executor.waitForDeployment();
   console.log("TradingBotExecutor deployed to:", executor.target);
 
