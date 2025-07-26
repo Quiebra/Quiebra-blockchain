@@ -20,3 +20,4 @@ artifacts/
 .env
 
 /typechain-types/
+.DS_Store

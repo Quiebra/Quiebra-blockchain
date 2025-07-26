@@ -17,7 +17,7 @@ async function main() {
   console.log("MemecoinFactory deployed to:", factory.target);
 
   // Deploy TradingBotExecutor with router address (set to 0x... for now)
-  const router = "0x0000000000000000000000000000000000000000"; // Replace with real router address
+  const router = "0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3"; // Replace with real router address
   const TradingBotExecutor = await ethers.getContractFactory("TradingBotExecutor");
   const executor = await TradingBotExecutor.deploy(treasury, 100, router);
   await executor.waitForDeployment();
